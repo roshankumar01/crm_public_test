@@ -1,0 +1,12 @@
+<service>
+  <id>LearningCrmBackend</id>
+  <name>Learning CRM Backend</name>
+  <description>FastAPI backend for the Learning CRM</description>
+  <executable>C:\crm_new\backend\.venv\Scripts\python.exe</executable>
+  <arguments>C:\crm_new\backend\run_windows.py</arguments>
+  <workingdirectory>C:\crm_new\backend</workingdirectory>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <onfailure action="restart" delay="10 sec" />
+  <log mode="roll" />
+</service>

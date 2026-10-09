@@ -1,97 +1,193 @@
-# Windows VPS deployment
+# Windows Server VPS deployment
 
-This deployment uses PostgreSQL, a React production build, FastAPI, and Caddy. The public API lives at `/api` on the same origin as the frontend.
+This guide uses `C:\crm_new` for the Git checkout, PostgreSQL for data, FastAPI on `127.0.0.1:8000`, and Caddy on port 8080. The browser calls `/api` on the same host that serves the frontend. The tracked `Caddyfile` points to `C:\crm_new\frontend\dist`.
 
-## First deployment
+**Run each PowerShell command separately and wait for it to finish.** Do not paste a whole block as one long line. Use `npm.cmd` in PowerShell so its script execution policy does not block npm.
 
-These commands use the actual VPS checkout at `C:\crm_new`. The included `Caddyfile` serves `C:\crm_new\frontend\dist`. Keep using this path so Caddy does not serve a build from another folder.
+## A. First deployment on a new VPS
 
-Before updating, `git remote -v` in `C:\crm_new` should show `https://github.com/roshankumar01/crm_public_test.git`. This is the repository containing this deployment setup.
+Do this section once. If `C:\crm_new` already exists and `git status` works there, use [section B](#b-update-an-existing-vps) instead.
 
-1. Create an empty PostgreSQL database and login for this CRM. Keep PostgreSQL reachable from the VPS at `127.0.0.1:5432`, or adjust the settings below.
-2. From PowerShell, configure the backend:
+### 1. Install the programs
 
-   ```powershell
-   cd C:\crm_new\backend
-   Copy-Item .env.example .env
-   notepad .env
-   py -m venv .venv
-   .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-   ```
+Install [Git for Windows](https://git-scm.com/install/windows), [Python 3.13 x64](https://www.python.org/downloads/windows/), [Node.js LTS](https://nodejs.org/en/download) (the locked Vite build requires Node 22.12 or later), and [PostgreSQL for Windows](https://www.postgresql.org/download/windows/). Keep PostgreSQL running on `127.0.0.1:5432`.
 
-   Set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `ADMIN_USERNAME`, and a strong `ADMIN_PASSWORD` in `backend/.env`. This file is ignored by Git. The database password and CRM admin password are different settings.
-
-3. Build the frontend:
-
-   ```powershell
-   cd C:\crm_new\frontend
-   npm.cmd ci
-   npm.cmd run build
-   ```
-
-   The build is served from `frontend\dist`. You do not run `npm run dev` or `npm run preview` on the VPS. Production API requests always go to `/api` on the same host through Caddy; no `VITE_API_URL` setting is needed.
-
-4. Start the backend from its directory:
-
-   ```powershell
-   cd C:\crm_new\backend
-   .\.venv\Scripts\python.exe .\run_windows.py
-   ```
-
-   This creates or updates the database schema, ensures the built-in courses exist, and creates the admin automatically. No seed command is needed. On later starts, the admin password is synchronized with `backend/.env`. Keep `ADMIN_USERNAME` the same after first startup. Other users can be created in CRM settings after logging in.
-
-5. Use the included `Caddyfile` as your Caddy configuration. After installing Caddy, validate and start it from PowerShell (adjust the path to `caddy.exe` if needed):
-
-   ```powershell
-   & C:\caddy\caddy.exe validate --config C:\crm_new\Caddyfile
-   & C:\caddy\caddy.exe run --config C:\crm_new\Caddyfile
-   ```
-
-   `run` stays in the foreground and stops if that window closes. For reboot startup, install Caddy as a Windows service as described in the [official Caddy instructions](https://caddyserver.com/docs/running#windows-service). Open `http://YOUR_SERVER_IP:8080/login` and log in with `ADMIN_USERNAME` and `ADMIN_PASSWORD` from `backend/.env`. Allow inbound TCP port 8080 in the VPS firewall. For a domain with HTTPS, replace `:8080` with your domain and allow ports 80 and 443.
-
-Keep the backend process running with your Windows service manager. Its working directory must be `C:\crm_new\backend` so the `.env` file is found. The backend listens only on `127.0.0.1:8000`; Caddy handles public traffic.
-
-## Starting again after a reboot
-
-You do not need to rebuild or reinstall on every start. PostgreSQL, the backend, and Caddy must be running. If the backend and Caddy are installed as services, start or check them through Windows Services. Otherwise, start the backend with the command in step 4 and Caddy with the command in step 5, each in its own PowerShell window. Check these URLs on the server:
+Download [Caddy for Windows](https://caddyserver.com/docs/install) and place `caddy.exe` at `C:\caddy\caddy.exe`. Open a new PowerShell window and check the tools:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8000/health
-Invoke-RestMethod http://localhost:8080/api/health
+git --version
+py -3.13 --version
+node --version
+npm.cmd --version
+& C:\caddy\caddy.exe version
 ```
 
-Both should report `status` as `ok`. Then open `http://localhost:8080/login`. Do not add `/api` when contacting port 8000 directly; Caddy adds that public route on port 8080.
-
-## Updating
-
-From the VPS checkout, pull changes, then rebuild the frontend and update backend packages:
+### 2. Clone this project
 
 ```powershell
+git clone https://github.com/roshankumar01/crm_public_test.git C:\crm_new
 cd C:\crm_new
-git pull --ff-only
-cd frontend
-npm.cmd ci
-npm.cmd run build
-cd ..\backend
+git remote -v
+```
+
+The remote should be `crm_public_test.git`. Future updates use `git pull`; do not clone again into this folder.
+
+### 3. Create the database
+
+Open **SQL Shell (psql)** from the PostgreSQL installation. Connect to the default host `localhost`, port `5432`, database `postgres`, as user `postgres`. At its `postgres=#` prompt, enter these lines one at a time:
+
+```sql
+CREATE ROLE learning_crm LOGIN;
+\password learning_crm
+CREATE DATABASE learning_crm OWNER learning_crm;
+\q
+```
+
+The `\password` command prompts for a new database password. Save it for the next step. Do not repeat these creation commands for an existing database. [PostgreSQL database ownership documentation](https://www.postgresql.org/docs/current/sql-createdatabase.html).
+
+### 4. Configure and install the backend
+
+```powershell
+Copy-Item C:\crm_new\backend\.env.example C:\crm_new\backend\.env
+notepad C:\crm_new\backend\.env
+```
+
+Set `DB_PASSWORD` to the database password from step 3. Set a **different**, strong `ADMIN_PASSWORD` for CRM login. If you used the database commands above, keep `DB_HOST=127.0.0.1`, `DB_PORT=5432`, `DB_NAME=learning_crm`, and `DB_USER=learning_crm`. Keep `ADMIN_USERNAME` unchanged after first startup. `backend\.env` is ignored by Git and is not overwritten by a pull.
+
+```powershell
+cd C:\crm_new\backend
+py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Then restart the existing backend process or service if backend code changed. If it is not installed as a service, stop the old backend window and run `cd C:\crm_new\backend` followed by `.\.venv\Scripts\python.exe .\run_windows.py` in a new window. The frontend build is served directly from `dist`, so Caddy does not need a restart for JavaScript changes. **This release changes `Caddyfile`; reload Caddy once** from `C:\crm_new`:
+### 5. Build the frontend
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\reload-caddy.ps1
+cd C:\crm_new\frontend
+npm.cmd ci
+npm.cmd run build
 ```
 
-The script finds the running `caddy.exe`, validates `C:\crm_new\Caddyfile`, and reloads it. If Caddy is installed at a location it cannot detect, pass `-CaddyExe 'C:\path\to\caddy.exe'`.
+The build writes `frontend\dist` and then exits. No frontend process must remain running. Do not run `npm run dev` or `npm run preview` on the VPS.
 
-Finally run the deployment check from `C:\crm_new`:
+### 6. Test the backend before installing services
+
+In one PowerShell window:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\check-windows.ps1
+cd C:\crm_new\backend
+.\.venv\Scripts\python.exe .\run_windows.py
 ```
 
-It verifies that Caddy is serving the build in this checkout, `/api/health` reaches the backend, and the login request reaches the database. A check failure means the deployment is not ready; do not diagnose it from the login page alone.
+First startup creates or updates the schema, adds built-in courses, and creates the admin from `backend\.env`. No seed command is needed. Leave this window open. In a second PowerShell window:
 
-## API routing
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
+```
 
-The production frontend calls `/api/auth/login` on the same host that served the page. Caddy strips `/api` and forwards `/auth/login` to FastAPI. The old `/crm/*` proxy rule conflicted with frontend URLs such as `/crm/leads`. A production bundle calling `127.0.0.1:8000` instead tries to reach each visitor's own computer. A cross-origin `VITE_API_URL` set during an earlier build can produce this failure; rebuilding from the updated source fixes it.
+It should report `status : ok`. Then press **Ctrl+C** in the backend window before installing the service, so only one backend listens on port 8000.
+
+### 7. Install the backend service
+
+Download the x64 executable from the [WinSW releases](https://github.com/winsw/winsw/releases) and save it as `C:\crm_new\deploy\backend-service.exe`. The repository includes `deploy\backend-service.xml` with the backend executable, working directory, automatic startup, and restart on failure.
+
+In **PowerShell as Administrator**, run each line separately:
+
+```powershell
+& C:\crm_new\deploy\backend-service.exe install
+& C:\crm_new\deploy\backend-service.exe start
+Get-Service LearningCrmBackend
+Invoke-RestMethod http://127.0.0.1:8000/health
+```
+
+The service should be `Running`, and health should report `ok`. [WinSW configuration documentation](https://github.com/winsw/winsw/blob/v3/docs/xml-config-file.md).
+
+### 8. Install the Caddy service
+
+In **PowerShell as Administrator**, run each line separately:
+
+```powershell
+& C:\caddy\caddy.exe validate --config C:\crm_new\Caddyfile
+sc.exe create LearningCrmCaddy start= auto binPath= "C:\caddy\caddy.exe run --config C:\crm_new\Caddyfile"
+sc.exe start LearningCrmCaddy
+Get-Service LearningCrmCaddy
+```
+
+The service should be `Running`. If Caddy is already running in a PowerShell window, press **Ctrl+C** there before starting the service. [Caddy's Windows service instructions](https://caddyserver.com/docs/running#windows-service).
+
+### 9. Check the app and sign in
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\crm_new\deploy\check-windows.ps1
+```
+
+Expect three `PASS` lines: Caddy serves this checkout's build, `/api/health` reaches FastAPI, and `/api/auth/login` reaches the database. Open `http://localhost:8080/login` **on the VPS** and sign in with the admin account from `backend\.env`.
+
+These checks confirm operation on the VPS itself. Access from a different device also depends on the hosting provider and Windows firewall allowing the public port; that is separate from the app setup.
+
+## B. Update an existing VPS
+
+Use this section after changes have been pushed to `crm_public_test/main`. Run each line separately. Do not recreate the database, `.env`, or virtual environment.
+
+### 1. Pull the code
+
+```powershell
+cd C:\crm_new
+git status --short
+git pull --ff-only
+```
+
+`git status --short` should be empty before the pull. If it shows changes or the pull fails, resolve that result before rebuilding. The repository URL is needed only for the first clone.
+
+### 2. Update and restart the backend
+
+If it runs as the WinSW service installed above:
+
+```powershell
+& C:\crm_new\deploy\backend-service.exe stop
+& C:\crm_new\backend\.venv\Scripts\python.exe -m pip install -r C:\crm_new\backend\requirements.txt
+& C:\crm_new\deploy\backend-service.exe start
+```
+
+If it runs in a PowerShell window instead, press **Ctrl+C** in that window, run the middle `pip install` command above, then start it again from `C:\crm_new\backend` with `.\.venv\Scripts\python.exe .\run_windows.py`.
+
+### 3. Rebuild the frontend
+
+```powershell
+npm.cmd --prefix C:\crm_new\frontend ci
+npm.cmd --prefix C:\crm_new\frontend run build
+```
+
+If `npm ci` reports `EPERM` on `rolldown-binding`, a leftover Vite `dev` or `preview` process may hold that file open. Identify it with `Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Select-Object ProcessId,CommandLine`, stop only that Vite process, and retry. Caddy does not use the Node process.
+
+### 4. Reload Caddy and verify
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\crm_new\deploy\reload-caddy.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\crm_new\deploy\check-windows.ps1
+```
+
+The reload script validates and applies `C:\crm_new\Caddyfile`. If it cannot find Caddy, pass `-CaddyExe 'C:\your\path\caddy.exe'`. The check must print three `PASS` lines. Refresh `http://localhost:8080/login` with **Ctrl+Shift+R** and sign in.
+
+## C. After a reboot
+
+PostgreSQL, `LearningCrmBackend`, and `LearningCrmCaddy` should start as services. Check them without rebuilding:
+
+```powershell
+Get-Service *postgres*,LearningCrmBackend,LearningCrmCaddy
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\crm_new\deploy\check-windows.ps1
+```
+
+The frontend is static files in `dist`, not a service. A reboot alone does not require `git pull`, `npm ci`, or `npm run build`.
+
+## If a check fails
+
+| Result | What to check |
+| --- | --- |
+| Build missing | Run `npm.cmd --prefix C:\crm_new\frontend run build`. |
+| Caddy serves a different build | Check `root * C:/crm_new/frontend/dist` in `Caddyfile`, then run `deploy\reload-caddy.ps1`. |
+| `/api/health` fails | Check the backend service and `http://127.0.0.1:8000/health`. |
+| Login check does not return 401 | Check PostgreSQL and the `DB_*` values in `backend\.env`; do not share that file or its passwords. |
+| Real admin login returns 401 | Check `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `backend\.env`, then restart the backend so it synchronizes the admin. |
+
+Port 8000 is the direct backend and uses `/health`. Port 8080 is Caddy and uses `/api/health`. The production frontend calls `/api/auth/login` on the same host, so it needs no `VITE_API_URL` override.

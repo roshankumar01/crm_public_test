@@ -42,3 +42,6 @@ coverage/
 Thumbs.db
 
 .crm_venv/
+
+# Downloaded Windows service wrapper (configuration is tracked separately)
+/deploy/backend-service.exe
