@@ -1,0 +1,11 @@
+:8080 {
+    handle_path /api/* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    handle {
+        root * C:/crm/crm_public/frontend/dist
+        try_files {path} /index.html
+        file_server
+    }
+}

@@ -1,0 +1,25 @@
+.upsell-manage-page .profile-section { margin-bottom:22px; padding:28px; border:1px solid #e3e5f0; border-radius:22px; background:#fff; box-shadow:0 8px 28px rgba(44,42,87,.035); }
+.upsell-manage-page .section-heading { display:flex; justify-content:space-between; align-items:center; gap:18px; }
+.upsell-manage-page .profile-fields { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.upsell-manage-page .profile-field strong { overflow-wrap:anywhere; }
+.upsell-suggestion-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; }
+.upsell-suggestion { border:1px solid #e3def8; border-radius:18px; padding:22px; background:linear-gradient(135deg,#faf9ff,#f1f6ff); }
+.upsell-suggestion h3 { margin:12px 0; }
+.upsell-suggestion p { color:#747b93; font-size:13px; line-height:1.7; }
+.upsell-manage-page label { display:block; color:#616b87; font-size:13px; font-weight:600; }
+.upsell-manage-page select,.upsell-manage-page input,.upsell-manage-page textarea { display:block; width:100%; border:1px solid #e0e4ef; border-radius:12px; padding:12px; margin:8px 0 16px; font:inherit; color:#18243d; background:#fff; }
+.upsell-manage-page textarea { resize:vertical; }
+.upsell-manage-page fieldset { border:0; padding:0; margin:0; min-width:0; }
+.upsell-manage-page fieldset:disabled { opacity:.55; }
+.upsell-open-cases { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+.upsell-open-cases .selected { background:#eee8ff; border-color:#7952f8; }
+.upsell-panel-hint { background:#f5f3ff; color:#676082; padding:16px; border-radius:12px; font-size:13px; }
+.upsell-convert-button { border:0; border-radius:12px; padding:12px 20px; background:linear-gradient(120deg,#079b84,#05756b); color:#fff; font-weight:700; cursor:pointer; margin-left:auto; }
+.upsell-converted-card { border:1px solid #dbe8e6; border-radius:18px; padding:24px; margin:16px 0; background:linear-gradient(145deg,#fff,#f7fbfa); }
+.upsell-activity-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.upsell-manage-page summary { cursor:pointer; color:#676082; font-size:13px; padding:12px 0; }
+.upsell-manage-page .activity-list { margin-top:20px; }
+.upsell-manage-page .toolbar-actions { flex-wrap:wrap; }
+@media(max-width:700px) { .upsell-manage-page .section-heading { align-items:flex-start; flex-wrap:wrap; gap:12px; } .upsell-converted-card { padding:16px; } .upsell-convert-button { margin-left:0; } }
+@media(max-width:980px) { .upsell-manage-page .profile-fields { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .upsell-manage-page .profile-section { padding:18px; } .upsell-manage-page .profile-fields { grid-template-columns:1fr; } }

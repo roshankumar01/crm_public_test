@@ -1,0 +1,21 @@
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { getLearner, getUpsellContact } from "../api";
+import { useAuth } from "../context/AuthContext.jsx";
+import CustomerLifecycle from "../components/CustomerLifecycle.jsx";
+
+export default function LearnerDetailPage() {
+  const { learnerNumber, customerId } = useParams(); const { user } = useAuth(); const [data, setData] = useState(null); const [loading, setLoading] = useState(true); const [error, setError] = useState("");
+  useEffect(() => { setLoading(true); setError(""); (customerId ? getUpsellContact(customerId) : getLearner(learnerNumber)).then(setData).catch(e => setError(e.message)).finally(() => setLoading(false)); }, [learnerNumber, customerId]);
+  if (loading) return <div className="page"><div className="loading-state"><span/>Curating learner journey…</div></div>;
+  if (error || !data) return <div className="page"><div className="empty-card">{error || "Learner not found."}</div></div>;
+  const learner = data.learner; const backTarget = user?.role === "ADMIN" ? "/upsell/learners" : "/upsell/opportunities"; const backText = user?.role === "ADMIN" ? "Learners" : "My leads"; const progress = Math.min(100, (data.passed_courses.length * 24) + (data.timeline.length ? 12 : 0));
+  return <div className="page learner-page"><Link to={backTarget} className="back-link">← Back to {backText}</Link>
+    <div className="profile-hero premium-profile"><div className="profile-avatar">{learner.name?.charAt(0)?.toUpperCase()}</div><div className="profile-main"><div className="eyebrow">LEARNER EXPERIENCE</div><h1>{learner.name}</h1><div className="profile-number">{learner.learner_number ? `Learner #${learner.learner_number}` : `Contact #${learner.customer_id}`} <span className="active-learner"><i/> Active</span></div></div><div className="profile-contact"><div><span>Email</span><strong>{learner.email_id || "—"}</strong></div><div><span>Phone</span><strong>{learner.contact_number || "—"}</strong></div><div><span>Counselor ? Main CRM</span><strong>{learner.assigned_to_name || "Unassigned"}</strong></div><div><span>Last activity</span><strong>{learner.last_activity_date || "—"}</strong></div></div></div>
+    <div className="learner-pulse"><div><div className="eyebrow">JOURNEY COMPLETION</div><strong>{progress}%</strong><div className="pulse-track"><span style={{ width: `${progress}%` }}/></div></div><div><div className="eyebrow">COURSES COMPLETED</div><strong>{data.passed_courses.length}</strong><small>Verified outcomes</small></div><div><div className="eyebrow">NEXT ACTIONS</div><strong>{data.recommendations.length}</strong><small>Personalized recommendations</small></div></div>
+    <CustomerLifecycle lifecycle={data.lifecycle} />
+    <div className="profile-grid"><section><div className="section-heading"><div><div className="eyebrow">NEXT BEST ACTION</div><h2>Personalized learning path</h2></div></div>
+      {data.recommendations.length === 0 ? <div className="empty-card">This learner is currently on track. No new recommendation yet.</div> : <div className="recommendation-list">{data.recommendations.map(r => <div className="recommendation-card premium-recommendation" key={r.code}><div className="recommendation-top"><div className="course-badge">{r.code}</div><span className="recommend-label">Best next step</span></div><h3>{r.name}</h3><p>{r.reason}</p><div className="recommend-footer"><span>Personalized pathway</span><strong>Explore →</strong></div></div>)}</div>}
+    </section><aside><div className="side-card learner-side"><div className="eyebrow">CAMPAIGN HISTORY</div><h3>Marketing sent</h3>{(data.campaigns || []).length === 0 ? <p className="muted">No marketing campaigns linked.</p> : <div className="learner-campaigns">{data.campaigns.slice(0, 5).map(c => <div key={c.id}><span>{c.marketing_type}</span><strong>{c.campaign_name}</strong><small>{new Date(c.created_at).toLocaleDateString()}</small></div>)}</div>}<div className="side-divider"/><div className="eyebrow">COMPLETED COURSES</div><h3>Achievements</h3>{data.passed_courses.length === 0 ? <p className="muted">Milestones will appear here.</p> : <div className="course-chip-list">{data.passed_courses.map(c => <span className="course-chip" key={c}><i>✓</i>{c}</span>)}</div>}</div></aside></div>
+  </div>;
+}

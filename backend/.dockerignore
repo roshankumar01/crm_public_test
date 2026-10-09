@@ -1,0 +1,10 @@
+*
+!Dockerfile
+!requirements.txt
+!seed_courses.py
+!app/
+!app/**
+**/__pycache__/
+**/*.pyc
+**/.env
+**/.env.*

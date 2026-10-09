@@ -1,0 +1,14 @@
+.verification-tick { display:inline-flex; align-items:center; gap:6px; vertical-align:middle; margin-left:8px; font-size:12px; font-weight:700; white-space:nowrap; }
+.verification-tick svg { width:25px; height:25px; flex-shrink:0; border-radius:50%; padding:3px; }
+.verification-tick.verified { color:#12814f; }
+.verification-tick.verified svg { background:#e7f8ef; }
+.verification-tick.pending { color:#8e96a4; }
+.verification-tick.pending svg { background:#f0f2f6; }
+.verification-filters { display:flex; gap:16px; flex-wrap:wrap; align-items:flex-end; margin-bottom:24px; }
+.verification-filters label { display:grid; gap:7px; color:#616b80; font-size:13px; }
+.verification-filters select { min-width:190px; }
+.verification-notice { border:1px solid #b7e6ce; background:#f0faf5; color:#16633f; padding:14px 18px; border-radius:12px; margin:16px 0; }
+.verification-cell { min-width:165px; }
+.verification-cell .primary-button { display:block; padding:8px 13px; font-size:12px; margin-top:8px; }
+.verification-cell .small-muted { margin:5px 0 0 8px; white-space:normal; }
+.verification-report .table-card { overflow-x:auto; }
