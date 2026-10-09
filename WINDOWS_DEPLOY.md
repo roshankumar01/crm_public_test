@@ -4,13 +4,15 @@ This deployment uses PostgreSQL, a React production build, FastAPI, and Caddy. T
 
 ## First deployment
 
-These commands assume the repository is cloned to `C:\crm\crm_public`, matching the included `Caddyfile`. If you use another directory, make a copy of the Caddyfile outside the Git checkout and change its `root` path there. Start Caddy with `--config` pointing to that copy, so future pulls do not conflict with your server-specific path.
+These commands use the actual VPS checkout at `C:\crm_new`. The included `Caddyfile` serves `C:\crm_new\frontend\dist`. Keep using this path so Caddy does not serve a build from another folder.
+
+Before updating, `git remote -v` in `C:\crm_new` should show `https://github.com/roshankumar01/crm_public_test.git`. This is the repository containing this deployment setup.
 
 1. Create an empty PostgreSQL database and login for this CRM. Keep PostgreSQL reachable from the VPS at `127.0.0.1:5432`, or adjust the settings below.
 2. From PowerShell, configure the backend:
 
    ```powershell
-   cd C:\crm\crm_public\backend
+   cd C:\crm_new\backend
    Copy-Item .env.example .env
    notepad .env
    py -m venv .venv
@@ -22,9 +24,9 @@ These commands assume the repository is cloned to `C:\crm\crm_public`, matching 
 3. Build the frontend:
 
    ```powershell
-   cd C:\crm\crm_public\frontend
-   npm ci
-   npm run build
+   cd C:\crm_new\frontend
+   npm.cmd ci
+   npm.cmd run build
    ```
 
    The build is served from `frontend\dist`. You do not run `npm run dev` or `npm run preview` on the VPS. Production API requests always go to `/api` on the same host through Caddy; no `VITE_API_URL` setting is needed.
@@ -32,7 +34,7 @@ These commands assume the repository is cloned to `C:\crm\crm_public`, matching 
 4. Start the backend from its directory:
 
    ```powershell
-   cd C:\crm\crm_public\backend
+   cd C:\crm_new\backend
    .\.venv\Scripts\python.exe .\run_windows.py
    ```
 
@@ -41,13 +43,13 @@ These commands assume the repository is cloned to `C:\crm\crm_public`, matching 
 5. Use the included `Caddyfile` as your Caddy configuration. After installing Caddy, validate and start it from PowerShell (adjust the path to `caddy.exe` if needed):
 
    ```powershell
-   & C:\caddy\caddy.exe validate --config C:\crm\crm_public\Caddyfile
-   & C:\caddy\caddy.exe run --config C:\crm\crm_public\Caddyfile
+   & C:\caddy\caddy.exe validate --config C:\crm_new\Caddyfile
+   & C:\caddy\caddy.exe run --config C:\crm_new\Caddyfile
    ```
 
    `run` stays in the foreground and stops if that window closes. For reboot startup, install Caddy as a Windows service as described in the [official Caddy instructions](https://caddyserver.com/docs/running#windows-service). Open `http://YOUR_SERVER_IP:8080/login` and log in with `ADMIN_USERNAME` and `ADMIN_PASSWORD` from `backend/.env`. Allow inbound TCP port 8080 in the VPS firewall. For a domain with HTTPS, replace `:8080` with your domain and allow ports 80 and 443.
 
-Keep the backend process running with your Windows service manager. Its working directory must be `C:\crm\crm_public\backend` (or your chosen backend directory) so the `.env` file is found. The backend listens only on `127.0.0.1:8000`; Caddy handles public traffic.
+Keep the backend process running with your Windows service manager. Its working directory must be `C:\crm_new\backend` so the `.env` file is found. The backend listens only on `127.0.0.1:8000`; Caddy handles public traffic.
 
 ## Starting again after a reboot
 
@@ -62,18 +64,33 @@ Both should report `status` as `ok`. Then open `http://localhost:8080/login`. Do
 
 ## Updating
 
-From the repository directory, pull changes, then rebuild the frontend and update backend packages:
+From the VPS checkout, pull changes, then rebuild the frontend and update backend packages:
 
 ```powershell
-git pull
+cd C:\crm_new
+git pull --ff-only
 cd frontend
-npm ci
-npm run build
+npm.cmd ci
+npm.cmd run build
 cd ..\backend
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Then restart the existing backend process or service. If it is not installed as a service, stop the old backend window and run `cd C:\crm\crm_public\backend` followed by `.\.venv\Scripts\python.exe .\run_windows.py` in a new window. Caddy does not need a restart for a new frontend build. Reload Caddy only if its configuration changes.
+Then restart the existing backend process or service if backend code changed. If it is not installed as a service, stop the old backend window and run `cd C:\crm_new\backend` followed by `.\.venv\Scripts\python.exe .\run_windows.py` in a new window. The frontend build is served directly from `dist`, so Caddy does not need a restart for JavaScript changes. **This release changes `Caddyfile`; reload Caddy once** from `C:\crm_new`:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\reload-caddy.ps1
+```
+
+The script finds the running `caddy.exe`, validates `C:\crm_new\Caddyfile`, and reloads it. If Caddy is installed at a location it cannot detect, pass `-CaddyExe 'C:\path\to\caddy.exe'`.
+
+Finally run the deployment check from `C:\crm_new`:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\check-windows.ps1
+```
+
+It verifies that Caddy is serving the build in this checkout, `/api/health` reaches the backend, and the login request reaches the database. A check failure means the deployment is not ready; do not diagnose it from the login page alone.
 
 ## API routing
 

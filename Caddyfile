@@ -4,7 +4,7 @@
     }
 
     handle {
-        root * C:/crm/crm_public/frontend/dist
+        root * C:/crm_new/frontend/dist
         try_files {path} /index.html
         file_server
     }
