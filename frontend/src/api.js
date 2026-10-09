@@ -1,5 +1,6 @@
-// Production requests stay on the public origin and pass through Caddy.
-const API_URL = (import.meta.env.VITE_API_URL || (import.meta.env.PROD ? "/api" : "http://127.0.0.1:8000")).replace(/\/+$/, "");
+// Production requests always use Caddy on the same origin, even if a local
+// VITE_API_URL setting was present when the frontend was built.
+const API_URL = (import.meta.env.PROD ? "/api" : (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000")).replace(/\/+$/, "");
 const TOKEN_KEY = "learning_crm_token";
 
 export function getStoredToken() {
